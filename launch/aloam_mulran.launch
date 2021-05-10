@@ -1,0 +1,32 @@
+<launch>
+    
+    <param name="scan_line" type="int" value="64" />
+
+    <!-- if 1, do mapping 10 Hz, if 2, do mapping 5 Hz. Suggest to use 1, it will adjust frequence automaticlly -->
+    <param name="mapping_skip_frame" type="int" value="1" />
+
+    <!-- remove too closed points -->
+    <param name="minimum_range" type="double" value="0.5"/>
+
+    <!-- params -->
+    <param name="mapping_line_resolution" type="double" value="0.4"/> <!-- A-LOAM -->
+    <param name="mapping_plane_resolution" type="double" value="0.8"/> <!-- A-LOAM -->
+    <param name="keyframe_meter_gap" type="double" value="1.0"/> <!-- SC-A-LOAM -->
+    <param name="sc_dist_thres" type="double" value="0.2"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
+
+    <!-- for MulRan -->
+    <remap from="/velodyne_points" to="/os1_points"/>
+
+    <!-- nodes -->
+    <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" /> <!-- A-LOAM -->
+    <node pkg="aloam_velodyne" type="alaserOdometry" name="alaserOdometry" output="screen" /> <!-- A-LOAM -->
+    <node pkg="aloam_velodyne" type="alaserMapping" name="alaserMapping" output="screen" /> <!-- A-LOAM -->
+    <node pkg="aloam_velodyne" type="alaserPGO" name="alaserPGO" output="screen" /> <!-- SC-A-LOAM -->
+
+    <!-- visulaization -->
+    <arg name="rviz" default="true" />
+    <group if="$(arg rviz)">
+        <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find aloam_velodyne)/rviz_cfg/aloam_velodyne.rviz" />
+    </group>
+
+</launch>
