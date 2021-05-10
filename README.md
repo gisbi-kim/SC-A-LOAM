@@ -4,6 +4,7 @@
 - A real-time LiDAR SLAM package that integrates A-LOAM and ScanContext. 
     - **A-LOAM** for odometry (i.e., consecutive motion estimation)
     - **ScanContext** for global localization (place recognition as kidnapped robot problem)
+    - and iSAM2 of GTSAM is used for pose-graph optimization. 
 - This package aims to show ScanContext's handy applicability. 
     - This only things a user should do is just to include `Scancontext.h`, call `makeAndSaveScancontextAndKeys` and `detectLoopClosureID`. 
 
@@ -38,7 +39,7 @@
 - The MulRan dataset provides lidar scans (Ouster OS1-64, horizontally mounted, 10Hz) and consumer level gps (U-Blox EVK-7P, 4Hz) data.
     - About how to use (publishing data) data: see here https://github.com/irapkaist/file_player_mulran
 - example videos on Riverside 01 sequence. 
-    1. with consumer level GPS-based altitude stabilization: https://youtu.be/okML_zNadhY 
+    1. with consumer level GPS-based altitude stabilization: https://youtu.be/FwAVX5TVm04
     2. without the z stabilization: https://youtu.be/okML_zNadhY 
 - example result:
 
