@@ -1,6 +1,6 @@
 # SC-A-LOAM
 
-## What SC-A-LOAM? 
+## What is SC-A-LOAM? 
 - A real-time LiDAR SLAM package that integrates A-LOAM and ScanContext. 
     - **A-LOAM** for odometry (i.e., consecutive motion estimation)
     - **ScanContext** for global localization (place recognition as kidnapped robot problem)
