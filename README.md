@@ -1,9 +1,9 @@
 # SC-A-LOAM
 
 ## What SC-A-LOAM? 
-- A real-time LiDAR SLAM package. 
-    - A-LOAM for odometry (i.e., consecutive motion estimation)
-    - ScanContext for global localization (place recognition as kidnapped robot problem)
+- A real-time LiDAR SLAM package that integrates A-LOAM and ScanContext. 
+    - **A-LOAM** for odometry (i.e., consecutive motion estimation)
+    - **ScanContext** for global localization (place recognition as kidnapped robot problem)
 - This package aims to show ScanContext's handy applicability. 
     - This only things a user should do is just to include `Scancontext.h`, call `makeAndSaveScancontextAndKeys` and `detectLoopClosureID`. 
 
