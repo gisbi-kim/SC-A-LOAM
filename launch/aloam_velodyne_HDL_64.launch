@@ -8,15 +8,18 @@
     <!-- remove too closed points -->
     <param name="minimum_range" type="double" value="5"/>
 
+    <param name="mapping_line_resolution" type="double" value="0.4"/> <!-- A-LOAM -->
+    <param name="mapping_plane_resolution" type="double" value="0.8"/> <!-- A-LOAM -->
 
-    <param name="mapping_line_resolution" type="double" value="0.4"/>
-    <param name="mapping_plane_resolution" type="double" value="0.8"/>
+    <param name="keyframe_meter_gap" type="double" value="1.0"/> <!-- SC-A-LOAM -->
+    <param name="sc_dist_thres" type="double" value="0.2"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
+
+    <param name="lidar_type" type="string" value="KITTI"/> 
 
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />
-
     <node pkg="aloam_velodyne" type="alaserOdometry" name="alaserOdometry" output="screen" />
-
     <node pkg="aloam_velodyne" type="alaserMapping" name="alaserMapping" output="screen" />
+    <node pkg="aloam_velodyne" type="alaserPGO" name="alaserPGO" output="screen" /> <!-- SC-A-LOAM -->
 
     <arg name="rviz" default="true" />
     <group if="$(arg rviz)">

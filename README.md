@@ -21,7 +21,7 @@
 - The below examples are done under ROS melodic (ubuntu 18) and GTSAM version 4.x. 
 
 ## How to use? 
-- First, install the abovementioned dependencies, and follow this lines. 
+- First, install the abovementioned dependencies, and follow below lines. 
 ```
     mkdir -p ~/catkin_scaloam_ws/src
     cd ~/catkin_scaloam_ws/src
@@ -45,8 +45,15 @@
 <p align="center"><img src="picture/riverside01.png" width=800></p>
 
 ### KITTI 05 
-- The first, reconfigure the N_SCANS-related lines in `scanRegistration.cpp` file (the default parameter is set for MulRan dataset).  
-- example video: TODO
+- For KITTI (HDL-64 sensor), run using the command 
+    ```
+    roslaunch aloam_velodyne aloam_velodyne_HDL_64.launch # for KITTI dataset setting
+    ```
+- To publish KITTI scans, you can use mini-kitti publisher, a simple python script: https://github.com/gisbi-kim/mini-kitti-publisher
+- example video (no GPS used here): https://youtu.be/hk3Xx8SKkv4
+- example result: 
+
+<p align="center"><img src="picture/kitti05.png" width=800></p>
 
 ## Acknowledgements
 - Thanks to LOAM, A-LOAM, and LIO-SAM code authors. The major codes in this repository are borrowed from their efforts.

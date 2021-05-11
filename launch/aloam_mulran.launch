@@ -11,10 +11,12 @@
     <!-- params -->
     <param name="mapping_line_resolution" type="double" value="0.4"/> <!-- A-LOAM -->
     <param name="mapping_plane_resolution" type="double" value="0.8"/> <!-- A-LOAM -->
+
     <param name="keyframe_meter_gap" type="double" value="1.0"/> <!-- SC-A-LOAM -->
-    <param name="sc_dist_thres" type="double" value="0.2"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
+    <param name="sc_dist_thres" type="double" value="0.3"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
 
     <!-- for MulRan -->
+    <param name="lidar_type" type="string" value="MulRan"/> 
     <remap from="/velodyne_points" to="/os1_points"/>
 
     <!-- nodes -->
