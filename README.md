@@ -56,6 +56,12 @@
 
 <p align="center"><img src="picture/kitti05.png" width=800></p>
 
+### Indoor
+- ScanContext also works at indoor environments (use smaller sc_max_radius value).
+- example video: https://youtu.be/Uv6_BRmxJho
+- example result: 
+<p align="center"><img src="picture/indoor.png" width=800></p>
+
 ## Acknowledgements
 - Thanks to LOAM, A-LOAM, and LIO-SAM code authors. The major codes in this repository are borrowed from their efforts.
 
