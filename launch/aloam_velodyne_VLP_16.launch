@@ -6,21 +6,33 @@
     <param name="mapping_skip_frame" type="int" value="1" />
 
     <!-- remove too closed points -->
-    <param name="minimum_range" type="double" value="0.3"/>
+    <param name="minimum_range" type="double" value="0.1"/>
 
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
 
-    <param name="keyframe_meter_gap" type="double" value="1.0"/> <!-- SC-A-LOAM -->
+    <param name="mapviz_filter_size" type="double" value="0.1"/>
+
+    <!-- SC-A-LOAM -->
+    <param name="keyframe_meter_gap" type="double" value="1.0"/> 
+    <param name="keyframe_deg_gap" type="double" value="10.0"/> 
+
+    <!-- Scan Context -->
     <param name="sc_dist_thres" type="double" value="0.2"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
+    <param name="sc_max_radius" type="double" value="40.0"/> <!-- 20 or 40 for indoor -->
+    <!-- <param name="sc_max_radius" type="double" value="80.0"/> for outdoor -->
 
-    <param name="lidar_type" type="string" value="KITTI"/> 
-
+    <!--  -->
+    <param name="lidar_type" type="string" value="VLP16"/> 
+    <remap from="/velodyne_points" to="/velodyne_points"/>
+    
+    <!-- nodes -->
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />
     <node pkg="aloam_velodyne" type="alaserOdometry" name="alaserOdometry" output="screen" />
     <node pkg="aloam_velodyne" type="alaserMapping" name="alaserMapping" output="screen" />
     <node pkg="aloam_velodyne" type="alaserPGO" name="alaserPGO" output="screen" /> <!-- SC-A-LOAM -->
 
+    <!-- visulaization -->
     <arg name="rviz" default="true" />
     <group if="$(arg rviz)">
         <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find aloam_velodyne)/rviz_cfg/aloam_velodyne.rviz" />

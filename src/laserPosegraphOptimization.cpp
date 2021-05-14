@@ -62,8 +62,14 @@ using std::cout;
 using std::endl;
 
 double keyframeMeterGap;
-double movementAccumulation = 1000000.0; // large value means must add the first given frame.
+double keyframeDegGap, keyframeRadGap;
+double translationAccumulated = 1000000.0; // large value means must add the first given frame.
+double rotaionAccumulated = 1000000.0; // large value means must add the first given frame.
+
 bool isNowKeyFrame = false; 
+
+Pose6D odom_pose_prev {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // init 
+Pose6D odom_pose_curr {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // init pose is zero 
 
 std::queue<nav_msgs::Odometry::ConstPtr> odometryBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> fullResBuf;
@@ -89,9 +95,6 @@ gtsam::Values initialEstimate;
 gtsam::ISAM2 *isam;
 gtsam::Values isamCurrentEstimate;
 
-Pose6D odom_pose_prev {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // init 
-Pose6D odom_pose_curr {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // init pose is zero 
-
 noiseModel::Diagonal::shared_ptr priorNoise;
 noiseModel::Diagonal::shared_ptr odomNoise;
 noiseModel::Base::shared_ptr robustLoopNoise;
@@ -99,7 +102,7 @@ noiseModel::Base::shared_ptr robustGPSNoise;
 
 pcl::VoxelGrid<PointType> downSizeFilterScancontext;
 SCManager scManager;
-double scDistThres;
+double scDistThres, scMaximumRadius;
 
 pcl::VoxelGrid<PointType> downSizeFilterICP;
 std::mutex mtxICP;
@@ -187,10 +190,18 @@ Pose6D getOdom(nav_msgs::Odometry::ConstPtr _odom)
     return Pose6D{tx, ty, tz, roll, pitch, yaw}; 
 } // getOdom
 
-double transDiff(const Pose6D& _p1, const Pose6D& _p2)
+Pose6D diffTransformation(const Pose6D& _p1, const Pose6D& _p2)
 {
-    return sqrt( (_p1.x - _p2.x)*(_p1.x - _p2.x) + (_p1.y - _p2.y)*(_p1.y - _p2.y) + (_p1.z - _p2.z)*(_p1.z - _p2.z) );
-} // transDiff
+    Eigen::Affine3f SE3_p1 = pcl::getTransformation(_p1.x, _p1.y, _p1.z, _p1.roll, _p1.pitch, _p1.yaw);
+    Eigen::Affine3f SE3_p2 = pcl::getTransformation(_p2.x, _p2.y, _p2.z, _p2.roll, _p2.pitch, _p2.yaw);
+    Eigen::Matrix4f SE3_delta0 = SE3_p1.matrix().inverse() * SE3_p2.matrix();
+    Eigen::Affine3f SE3_delta; SE3_delta.matrix() = SE3_delta0;
+    float dx, dy, dz, droll, dpitch, dyaw;
+    pcl::getTranslationAndEulerAngles (SE3_delta, dx, dy, dz, droll, dpitch, dyaw);
+    // std::cout << "delta : " << dx << ", " << dy << ", " << dz << ", " << droll << ", " << dpitch << ", " << dyaw << std::endl;
+
+    return Pose6D{double(abs(dx)), double(abs(dy)), double(abs(dz)), double(abs(droll)), double(abs(dpitch)), double(abs(dyaw))};
+} // SE3Diff
 
 gtsam::Pose3 Pose6DtoGTSAMPose3(const Pose6D& p)
 {
@@ -333,7 +344,7 @@ void loopFindNearKeyframesCloud( pcl::PointCloud<PointType>::Ptr& nearKeyframes,
     nearKeyframes->clear();
     for (int i = -submap_size; i <= submap_size; ++i) {
         int keyNear = root_idx + i;
-        if (keyNear < 0 || keyNear >= keyframeLaserClouds.size() )
+        if (keyNear < 0 || keyNear >= int(keyframeLaserClouds.size()) )
             continue;
 
         mKF.lock(); 
@@ -456,12 +467,16 @@ void process_pg()
             // 
             odom_pose_prev = odom_pose_curr;
             odom_pose_curr = pose_curr;
-            double delta_translation = transDiff(odom_pose_prev, odom_pose_curr);
-            movementAccumulation += delta_translation;
+            Pose6D dtf = diffTransformation(odom_pose_prev, odom_pose_curr); // dtf means delta_transform
 
-            if( movementAccumulation > keyframeMeterGap ) {
+            double delta_translation = sqrt(dtf.x*dtf.x + dtf.y*dtf.y + dtf.z*dtf.z); // note: absolute value. 
+            translationAccumulated += delta_translation;
+            rotaionAccumulated += (dtf.roll + dtf.pitch + dtf.yaw); // sum just naive approach.  
+
+            if( translationAccumulated > keyframeMeterGap || rotaionAccumulated > keyframeRadGap ) {
                 isNowKeyFrame = true;
-                movementAccumulation = 0.0; // reset 
+                translationAccumulated = 0.0; // reset 
+                rotaionAccumulated = 0.0; // reset 
             } else {
                 isNowKeyFrame = false;
             }
@@ -555,7 +570,7 @@ void process_pg()
 
 void performSCLoopClosure(void)
 {
-    if( keyframePoses.size() < scManager.NUM_EXCLUDE_RECENT) // do not try too early 
+    if( int(keyframePoses.size()) < scManager.NUM_EXCLUDE_RECENT) // do not try too early 
         return;
 
     auto detectResult = scManager.detectLoopClosureID(); // first: nn index, second: yaw diff 
@@ -631,7 +646,7 @@ void process_viz_path(void)
 
 void pubMap(void)
 {
-    int SKIP_FRAMES = 2;
+    int SKIP_FRAMES = 2; // sparse map visulalization to save computations 
     int counter = 0;
 
     laserCloudMapPGO->clear();
@@ -672,8 +687,12 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "laserPGO");
 	ros::NodeHandle nh;
 
-	nh.param<double>("keyframe_meter_gap", keyframeMeterGap, 2.0); // pose assignment every k frames 
-	nh.param<double>("sc_dist_thres", scDistThres, 0.2); // pose assignment every k frames 
+	nh.param<double>("keyframe_meter_gap", keyframeMeterGap, 2.0); // pose assignment every k m move 
+	nh.param<double>("keyframe_deg_gap", keyframeDegGap, 10.0); // pose assignment every k deg rot 
+    keyframeRadGap = deg2rad(keyframeDegGap);
+
+	nh.param<double>("sc_dist_thres", scDistThres, 0.2);  
+	nh.param<double>("sc_max_radius", scMaximumRadius, 80.0); // 80 is recommended for outdoor, and lower (ex, 20, 40) values are recommended for indoor 
 
     ISAM2Params parameters;
     parameters.relinearizeThreshold = 0.01;
@@ -682,11 +701,15 @@ int main(int argc, char **argv)
     initNoises();
 
     scManager.setSCdistThres(scDistThres);
+    scManager.setMaximumRadius(scMaximumRadius);
 
     float filter_size = 0.4; 
     downSizeFilterScancontext.setLeafSize(filter_size, filter_size, filter_size);
     downSizeFilterICP.setLeafSize(filter_size, filter_size, filter_size);
-    downSizeFilterMapPGO.setLeafSize(filter_size, filter_size, filter_size);
+
+    double mapVizFilterSize;
+	nh.param<double>("mapviz_filter_size", mapVizFilterSize, 0.4); // pose assignment every k frames 
+    downSizeFilterMapPGO.setLeafSize(mapVizFilterSize, mapVizFilterSize, mapVizFilterSize);
 
 	ros::Subscriber subLaserCloudFullRes = nh.subscribe<sensor_msgs::PointCloud2>("/velodyne_cloud_registered_local", 100, laserCloudFullResHandler);
 	ros::Subscriber subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("/aft_mapped_to_init", 100, laserOdometryHandler);

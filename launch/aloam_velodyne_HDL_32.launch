@@ -11,11 +11,18 @@
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
 
-    <param name="keyframe_meter_gap" type="double" value="1.0"/> <!-- SC-A-LOAM -->
-    <param name="sc_dist_thres" type="double" value="0.2"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
+    <!-- SC-A-LOAM -->
+    <param name="keyframe_meter_gap" type="double" value="1.0"/> 
 
-    <param name="lidar_type" type="string" value="KITTI"/>
-    
+    <!-- Scan Context -->
+    <param name="sc_dist_thres" type="double" value="0.2"/> <!-- SC-A-LOAM, if want no outliers, use 0.1-0.15 -->
+    <!-- <param name="sc_max_radius" type="double" value="20.0"/> 20 or 40 for indoor -->
+    <param name="sc_max_radius" type="double" value="80.0"/> <!-- for outdoor -->
+
+    <!--  -->
+    <param name="lidar_type" type="string" value="HDL32"/>
+    <remap from="/velodyne_points" to="/velodyne_points"/>
+
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />
     <node pkg="aloam_velodyne" type="alaserOdometry" name="alaserOdometry" output="screen" />
     <node pkg="aloam_velodyne" type="alaserMapping" name="alaserMapping" output="screen" />

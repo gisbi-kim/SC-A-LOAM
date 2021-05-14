@@ -264,6 +264,11 @@ void SCManager::setSCdistThres(double _new_thres)
     SC_DIST_THRES = _new_thres;
 } // SCManager::setThres
 
+void SCManager::setMaximumRadius(double _max_r)
+{
+    PC_MAX_RADIUS = _max_r;
+} // SCManager::setMaximumRadius
+
 std::pair<int, float> SCManager::detectLoopClosureIDBetweenSession (std::vector<float>& _curr_key, Eigen::MatrixXd& _curr_desc)
 {
     int loop_id { -1 }; // init with -1, -1 means no loop (== LeGO-LOAM's variable "closestHistoryFrameID")

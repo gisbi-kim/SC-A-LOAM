@@ -168,7 +168,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         float angle = atan(point.z / sqrt(point.x * point.x + point.y * point.y)) * 180 / M_PI;
         int scanID = 0;
 
-        if (LIDAR_TYPE == "KITTI" && N_SCANS == 16)
+        if (LIDAR_TYPE == "VLP16" && N_SCANS == 16)
         {
             scanID = int((angle + 15) / 2 + 0.5);
             if (scanID > (N_SCANS - 1) || scanID < 0)
@@ -177,7 +177,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
                 continue;
             }
         }
-        else if (LIDAR_TYPE == "KITTI" && N_SCANS == 32)
+        else if (LIDAR_TYPE == "HDL32" && N_SCANS == 32)
         {
             scanID = int((angle + 92.0/3.0) * 3.0 / 4.0);
             if (scanID > (N_SCANS - 1) || scanID < 0)
@@ -187,7 +187,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             }
         }
         // HDL64 (e.g., KITTI)
-        else if (LIDAR_TYPE == "KITTI" && N_SCANS == 64)
+        else if (LIDAR_TYPE == "HDL64" && N_SCANS == 64)
         {   
             if (angle >= -8.83)
                 scanID = int((2 - angle) * 3.0 + 0.5);
@@ -202,7 +202,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             }
         }
         // Ouster OS1-64 (e.g., MulRan)
-        else if (LIDAR_TYPE == "MulRan" && N_SCANS == 64)
+        else if (LIDAR_TYPE == "OS1-64" && N_SCANS == 64)
         {   
             scanID = int((angle + 22.5) / 2 + 0.5); // ouster os1-64 vfov is [-22.5, 22.5] see https://ouster.com/products/os1-lidar-sensor/
             if (scanID > (N_SCANS - 1) || scanID < 0)
@@ -452,6 +452,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     surfPointsLessFlat2.header.stamp = laserCloudMsg->header.stamp;
     surfPointsLessFlat2.header.frame_id = "/camera_init";
     pubSurfPointsLessFlat.publish(surfPointsLessFlat2);
+    // std::cout << "published ... " << std::endl;
 
     // pub each scam
     if(PUB_EACH_LINE)
