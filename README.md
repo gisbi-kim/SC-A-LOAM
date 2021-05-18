@@ -68,7 +68,7 @@
     - Note: No additional integration effort is required. A user just run seperately FAST-LIO node and SC-A-LOAM's posegraphoptimization.cpp node!
 - example video (tutoial and results): https://youtu.be/Fw9S6D6HozA
 - example result: 
-    <p align="center"><img src="picture/scfastlio.png" width=800></p>
+    <p align="center"><img src="picture/scfastlio.png" width=600></p>
 
 ## Acknowledgements
 - Thanks to LOAM, A-LOAM, and LIO-SAM code authors. The major codes in this repository are borrowed from their efforts.
