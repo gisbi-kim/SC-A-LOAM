@@ -88,8 +88,6 @@
 - please contact me through `paulgkim@kaist.ac.kr` 
 
 ## TODO
-- More examples on other datasets (KITTI, complex urban dataset, etc.)
 - Delayed RS loop closings 
-- data saver (e.g., pose-graph, optimized map)
 - SLAM with multi-session localization 
-- Efficient whole map visualization 
+- More examples on other datasets (KITTI, complex urban dataset, etc.)
