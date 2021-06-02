@@ -10,12 +10,13 @@ import open3d as o3d
 ##########################
 # User only consider this block
 ##########################
-# data_dir = "/home/user/Documents/catkin2021/catkin_scaloam_util/data/" # should end with / 
+# data_dir = "/home/user/Documents/catkin2021/catkin_scaloam_util/data_tuto/" # should end with / 
 data_dir = "sample_data/KAIST03/"
 scan_idx_range_to_stack = [0, 20] # if you want a whole map, use [0, len(scan_files)]
 node_skip = 1
 
 is_live_vis = False
+is_o3d_vis = False
 ##########################
 
 
@@ -51,7 +52,6 @@ pcd_combined_for_save = None
 
 # The scans from 000000.pcd should be prepared if it is not used (because below code indexing is designed in a naive way)
 for node_idx in range(len(scan_files)):
-    print(node_idx)
     if(node_idx < scan_idx_range_to_stack[0] or node_idx >= scan_idx_range_to_stack[1]):
         continue
 
@@ -67,7 +67,8 @@ for node_idx in range(len(scan_files)):
     scan_pcd_global = scan_pcd.transform(scan_pose) # global coord
     scan_pcd_global_xyz = np.asarray(scan_pcd_global.points)
 
-    pcd_combined_for_vis += scan_pcd_global
+    if(is_o3d_vis):
+        pcd_combined_for_vis += scan_pcd_global
 
     if is_live_vis:
         if(node_idx is scan_idx_range_to_stack[0]): # to ensure the vis init 
@@ -91,8 +92,9 @@ for node_idx in range(len(scan_files)):
         pcd_combined_for_save = pypcd.cat_point_clouds(pcd_combined_for_save, scan_pcd_with_intensity_global)
     
 
-print("draw the merged map ")
-o3d.visualization.draw_geometries([pcd_combined_for_vis])
+if(is_o3d_vis):
+    print("draw the merged map ")
+    o3d.visualization.draw_geometries([pcd_combined_for_vis])
 
 map_name = data_dir + "map_" + str(scan_idx_range_to_stack[0]) + "_to_" + str(scan_idx_range_to_stack[1]) + ".pcd"
 pcd_combined_for_save.save_pcd(map_name, compression='binary_compressed')

@@ -24,7 +24,7 @@
     <remap from="/velodyne_points" to="/os1_points"/>
 
     <!-- utils -->
-    <param name="save_directory" type="string" value="/home/user/Documents/catkin2021/catkin_scaloam_util/data/"/>  <!-- CHANGE THIS and end with / -->
+    <param name="save_directory" type="string" value="/home/user/Documents/catkin2021/catkin_scaloam_util/data_tuto/"/>  <!-- CHANGE THIS and end with / -->
 
     <!-- nodes -->
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" /> <!-- A-LOAM -->
