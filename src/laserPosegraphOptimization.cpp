@@ -1,3 +1,4 @@
+#include <fstream>
 #include <math.h>
 #include <vector>
 #include <mutex>
@@ -79,7 +80,8 @@ std::queue<std::pair<int, int> > scLoopICPBuf;
 std::mutex mBuf;
 std::mutex mKF;
 
-double timeLaserOdometry = 0;
+double timeLaserOdometry = 0.0;
+double timeLaser = 0.0;
 
 pcl::PointCloud<PointType>::Ptr laserCloudFullRes(new pcl::PointCloud<PointType>());
 pcl::PointCloud<PointType>::Ptr laserCloudMapAfterPGO(new pcl::PointCloud<PointType>());
@@ -88,6 +90,7 @@ std::vector<pcl::PointCloud<PointType>::Ptr> keyframeLaserClouds;
 std::vector<Pose6D> keyframePoses;
 std::vector<Pose6D> keyframePosesUpdated;
 std::vector<double> keyframeTimes;
+int recentIdxUpdated = 0;
 
 gtsam::NonlinearFactorGraph gtSAMgraph;
 bool gtSAMgraphMade = false;
@@ -125,6 +128,40 @@ ros::Publisher pubMapAftPGO, pubOdomAftPGO, pubPathAftPGO;
 ros::Publisher pubLoopScanLocal, pubLoopSubmapLocal;
 ros::Publisher pubOdomRepubVerifier;
 
+std::string save_directory;
+std::string pgKITTIformat, pgScansDirectory;
+std::fstream pgTimeSaveStream;
+
+std::string padZeros(int val, int num_digits = 6) {
+  std::ostringstream out;
+  out << std::internal << std::setfill('0') << std::setw(num_digits) << val;
+  return out.str();
+}
+
+void saveOptimizedVerticesKITTIformat(gtsam::Values _estimates, std::string _filename)
+{
+    using namespace gtsam;
+
+    // ref from gtsam's original code "dataset.cpp"
+    std::fstream stream(_filename.c_str(), std::fstream::out);
+
+    for(const auto& key_value: _estimates) {
+        auto p = dynamic_cast<const GenericValue<Pose3>*>(&key_value.value);
+        if (!p) continue;
+
+        const Pose3& pose = p->value();
+
+        Point3 t = pose.translation();
+        Rot3 R = pose.rotation();
+        auto col1 = R.column(1); // Point3
+        auto col2 = R.column(2); // Point3
+        auto col3 = R.column(3); // Point3
+
+        stream << col1.x() << " " << col2.x() << " " << col3.x() << " " << t.x() << " "
+               << col1.y() << " " << col2.y() << " " << col3.y() << " " << t.y() << " "
+               << col1.z() << " " << col2.z() << " " << col3.z() << " " << t.z() << std::endl;
+    }
+}
 
 void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr &_laserOdometry)
 {
@@ -238,7 +275,8 @@ void pubPath( void )
     nav_msgs::Path pathAftPGO;
     pathAftPGO.header.frame_id = "/camera_init";
     mKF.lock(); 
-    for (int node_idx=0; node_idx < int(keyframePosesUpdated.size()) - 1; node_idx++) // -1 is just delayed visualization (because sometimes mutexed while adding(push_back) a new one)
+    // for (int node_idx=0; node_idx < int(keyframePosesUpdated.size()) - 1; node_idx++) // -1 is just delayed visualization (because sometimes mutexed while adding(push_back) a new one)
+    for (int node_idx=0; node_idx < recentIdxUpdated; node_idx++) // -1 is just delayed visualization (because sometimes mutexed while adding(push_back) a new one)
     {
         const Pose6D& pose_est = keyframePosesUpdated.at(node_idx); // upodated poses
         // const gtsam::Pose3& pose_est = isamCurrentEstimate.at<gtsam::Pose3>(node_idx);
@@ -296,6 +334,9 @@ void updatePoses(void)
     const gtsam::Pose3& lastOptimizedPose = isamCurrentEstimate.at<gtsam::Pose3>(int(isamCurrentEstimate.size())-1);
     recentOptimizedX = lastOptimizedPose.translation().x();
     recentOptimizedY = lastOptimizedPose.translation().y();
+
+    recentIdxUpdated = int(keyframePosesUpdated.size()) - 1;
+
     mtxRecentPose.unlock();
 } // updatePoses
 
@@ -436,6 +477,7 @@ void process_pg()
 
             // Time equal check
             timeLaserOdometry = odometryBuf.front()->header.stamp.toSec();
+            timeLaser = fullResBuf.front()->header.stamp.toSec();
             // TODO
 
             laserCloudFullRes->clear();
@@ -509,6 +551,8 @@ void process_pg()
             laserCloudMapPGORedraw = true;
             mKF.unlock(); 
 
+            const int prev_node_idx = keyframePoses.size() - 2; 
+            const int curr_node_idx = keyframePoses.size() - 1; // becuase cpp starts with 0 (actually this index could be any number, but for simple implementation, we follow sequential indexing)
             if( ! gtSAMgraphMade /* prior node */) {
                 const int init_node_idx = 0; 
                 gtsam::Pose3 poseOrigin = Pose6DtoGTSAMPose3(keyframePoses.at(init_node_idx));
@@ -519,7 +563,7 @@ void process_pg()
                     // prior factor 
                     gtSAMgraph.add(gtsam::PriorFactor<gtsam::Pose3>(init_node_idx, poseOrigin, priorNoise));
                     initialEstimate.insert(init_node_idx, poseOrigin);
-                    runISAM2opt();          
+                    // runISAM2opt();          
                 }   
                 mtxPosegraph.unlock();
 
@@ -527,8 +571,6 @@ void process_pg()
 
                 cout << "posegraph prior node " << init_node_idx << " added" << endl;
             } else /* consecutive node (and odom factor) after the prior added */ { // == keyframePoses.size() > 1 
-                const int prev_node_idx = keyframePoses.size() - 2; 
-                const int curr_node_idx = keyframePoses.size() - 1; // becuase cpp starts with 0 (actually this index could be any number, but for simple implementation, we follow sequential indexing)
                 gtsam::Pose3 poseFrom = Pose6DtoGTSAMPose3(keyframePoses.at(prev_node_idx));
                 gtsam::Pose3 poseTo = Pose6DtoGTSAMPose3(keyframePoses.at(curr_node_idx));
 
@@ -547,7 +589,7 @@ void process_pg()
                         cout << "GPS factor added at node " << curr_node_idx << endl;
                     }
                     initialEstimate.insert(curr_node_idx, poseTo);                
-                    runISAM2opt();
+                    // runISAM2opt();
                 }
                 mtxPosegraph.unlock();
 
@@ -556,6 +598,10 @@ void process_pg()
             }
             // if want to print the current graph, use gtSAMgraph.print("\nFactor Graph:\n");
 
+            // save utility 
+            std::string curr_node_idx_str = padZeros(curr_node_idx);
+            pcl::io::savePCDFileBinary(pgScansDirectory + curr_node_idx_str + ".pcd", *thisKeyFrame); // scan 
+            pgTimeSaveStream << timeLaser << std::endl; // path 
         }
 
         // ps. 
@@ -621,7 +667,7 @@ void process_icp(void)
                 gtsam::Pose3 relative_pose = relative_pose_optional.value();
                 mtxPosegraph.lock();
                 gtSAMgraph.add(gtsam::BetweenFactor<gtsam::Pose3>(prev_node_idx, curr_node_idx, relative_pose, robustLoopNoise));
-                runISAM2opt();
+                // runISAM2opt();
                 mtxPosegraph.unlock();
             } 
         }
@@ -638,8 +684,25 @@ void process_viz_path(void)
     ros::Rate rate(hz);
     while (ros::ok()) {
         rate.sleep();
-        if(keyframePosesUpdated.size() > 1) {
+        if(recentIdxUpdated > 1) {
             pubPath();
+        }
+    }
+}
+
+void process_isam(void)
+{
+    float hz = 1; 
+    ros::Rate rate(hz);
+    while (ros::ok()) {
+        rate.sleep();
+        if( gtSAMgraphMade ) {
+            mtxPosegraph.lock();
+            runISAM2opt();
+            cout << "running isam2 optimization ..." << endl;
+            mtxPosegraph.unlock();
+
+            saveOptimizedVerticesKITTIformat(isamCurrentEstimate, pgKITTIformat); // pose
         }
     }
 }
@@ -652,7 +715,8 @@ void pubMap(void)
     laserCloudMapPGO->clear();
 
     mKF.lock(); 
-    for (int node_idx=0; node_idx < int(keyframePosesUpdated.size()); node_idx++) {
+    // for (int node_idx=0; node_idx < int(keyframePosesUpdated.size()); node_idx++) {
+    for (int node_idx=0; node_idx < recentIdxUpdated; node_idx++) {
         if(counter % SKIP_FRAMES == 0) {
             *laserCloudMapPGO += *local2global(keyframeLaserClouds[node_idx], keyframePosesUpdated[node_idx]);
         }
@@ -671,11 +735,11 @@ void pubMap(void)
 
 void process_viz_map(void)
 {
-    float vizmapFrequency = 0.1;
+    float vizmapFrequency = 0.1; // 0.1 means run onces every 10s
     ros::Rate rate(vizmapFrequency);
     while (ros::ok()) {
         rate.sleep();
-        if(keyframeLaserClouds.size() > 1) {
+        if(recentIdxUpdated > 1) {
             pubMap();
         }
     }
@@ -686,6 +750,14 @@ int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "laserPGO");
 	ros::NodeHandle nh;
+
+	nh.param<std::string>("save_directory", save_directory, "/"); // pose assignment every k m move 
+    pgKITTIformat = save_directory + "optimized_poses.txt";
+    pgTimeSaveStream = std::fstream(save_directory + "times.txt", std::fstream::out); 
+    pgTimeSaveStream.precision(std::numeric_limits<double>::max_digits10);
+    pgScansDirectory = save_directory + "Scans/";
+    auto unused = system((std::string("exec rm -r ") + pgScansDirectory).c_str());
+    unused = system((std::string("mkdir -p ") + pgScansDirectory).c_str());
 
 	nh.param<double>("keyframe_meter_gap", keyframeMeterGap, 2.0); // pose assignment every k m move 
 	nh.param<double>("keyframe_deg_gap", keyframeDegGap, 10.0); // pose assignment every k deg rot 
@@ -726,6 +798,8 @@ int main(int argc, char **argv)
 	std::thread posegraph_slam {process_pg}; // pose graph construction
 	std::thread lc_detection {process_lcd}; // loop closure detection 
 	std::thread icp_calculation {process_icp}; // loop constraint calculation via icp 
+	std::thread isam_update {process_isam}; // if you want to call less isam2 run (for saving redundant computations and no real-time visulization is required), uncommment this and comment all the above runisam2opt when node is added. 
+
 	std::thread viz_map {process_viz_map}; // visualization - map (low frequency because it is heavy)
 	std::thread viz_path {process_viz_path}; // visualization - path (high frequency)
 
