@@ -77,7 +77,7 @@
 - Similar to the [SC-LIO-SAM's saver utility](https://github.com/gisbi-kim/SC-LIO-SAM#applications), we support pose and scan saver per keyframes. Using these saved data, the map (within ROI) can be constructed offline. See the `utils/makeMergedMap.py` and [this tutorial](https://www.youtube.com/watch?v=n9JxdfiTy3w). 
 - Below is the example results of MulRan dataset KAIST 03's merged map, visualized using CloudCompare ([download the map data here](https://www.dropbox.com/sh/96jrpx3x6hh316j/AACb07kGbocnQWMIpksmU6MQa?dl=0)).  
 
-    <p align="center"><img src="picture/kaist-03-merged.png" width=700></p>
+    <p align="center"><img src="picture/kaist-03-merged.png" width=800></p>
 
 - A user also can remove dynamic points using these saved keyframe poses and scans. See [this tutorial](https://www.youtube.com/watch?v=UiYYrPMcIRU) and our [Removert project](https://github.com/irapkaist/removert).
 
@@ -88,8 +88,6 @@
 - please contact me through `paulgkim@kaist.ac.kr` 
 
 ## TODO
-- More examples on other datasets (KITTI, complex urban dataset, etc.)
 - Delayed RS loop closings 
-- data saver (e.g., pose-graph, optimized map)
 - SLAM with multi-session localization 
-- Efficient whole map visualization 
+- More examples on other datasets (KITTI, complex urban dataset, etc.)
