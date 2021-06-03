@@ -117,6 +117,7 @@ pcl::VoxelGrid<PointType> downSizeFilterMapPGO;
 bool laserCloudMapPGORedraw = true;
 
 bool useGPS = true;
+// bool useGPS = false;
 sensor_msgs::NavSatFix::ConstPtr currGPS;
 bool hasGPSforThisKF = false;
 bool gpsOffsetInitialized = false; 
@@ -130,12 +131,36 @@ ros::Publisher pubOdomRepubVerifier;
 
 std::string save_directory;
 std::string pgKITTIformat, pgScansDirectory;
+std::string odomKITTIformat;
 std::fstream pgTimeSaveStream;
 
 std::string padZeros(int val, int num_digits = 6) {
   std::ostringstream out;
   out << std::internal << std::setfill('0') << std::setw(num_digits) << val;
   return out.str();
+}
+
+gtsam::Pose3 Pose6DtoGTSAMPose3(const Pose6D& p)
+{
+    return gtsam::Pose3( gtsam::Rot3::RzRyRx(p.roll, p.pitch, p.yaw), gtsam::Point3(p.x, p.y, p.z) );
+} // Pose6DtoGTSAMPose3
+
+void saveOdometryVerticesKITTIformat(std::string _filename)
+{
+    // ref from gtsam's original code "dataset.cpp"
+    std::fstream stream(_filename.c_str(), std::fstream::out);
+    for(const auto& _pose6d: keyframePoses) {
+        gtsam::Pose3 pose = Pose6DtoGTSAMPose3(_pose6d);
+        Point3 t = pose.translation();
+        Rot3 R = pose.rotation();
+        auto col1 = R.column(1); // Point3
+        auto col2 = R.column(2); // Point3
+        auto col3 = R.column(3); // Point3
+
+        stream << col1.x() << " " << col2.x() << " " << col3.x() << " " << t.x() << " "
+               << col1.y() << " " << col2.y() << " " << col3.y() << " " << t.y() << " "
+               << col1.z() << " " << col2.z() << " " << col3.z() << " " << t.z() << std::endl;
+    }
 }
 
 void saveOptimizedVerticesKITTIformat(gtsam::Values _estimates, std::string _filename)
@@ -239,11 +264,6 @@ Pose6D diffTransformation(const Pose6D& _p1, const Pose6D& _p2)
 
     return Pose6D{double(abs(dx)), double(abs(dy)), double(abs(dz)), double(abs(droll)), double(abs(dpitch)), double(abs(dyaw))};
 } // SE3Diff
-
-gtsam::Pose3 Pose6DtoGTSAMPose3(const Pose6D& p)
-{
-    return gtsam::Pose3( gtsam::Rot3::RzRyRx(p.roll, p.pitch, p.yaw), gtsam::Point3(p.x, p.y, p.z) );
-} // Pose6DtoGTSAMPose3
 
 pcl::PointCloud<PointType>::Ptr local2global(const pcl::PointCloud<PointType>::Ptr &cloudIn, const Pose6D& tf)
 {
@@ -703,6 +723,7 @@ void process_isam(void)
             mtxPosegraph.unlock();
 
             saveOptimizedVerticesKITTIformat(isamCurrentEstimate, pgKITTIformat); // pose
+            saveOdometryVerticesKITTIformat(odomKITTIformat); // pose
         }
     }
 }
@@ -753,6 +774,7 @@ int main(int argc, char **argv)
 
 	nh.param<std::string>("save_directory", save_directory, "/"); // pose assignment every k m move 
     pgKITTIformat = save_directory + "optimized_poses.txt";
+    odomKITTIformat = save_directory + "odom_poses.txt";
     pgTimeSaveStream = std::fstream(save_directory + "times.txt", std::fstream::out); 
     pgTimeSaveStream.precision(std::numeric_limits<double>::max_digits10);
     pgScansDirectory = save_directory + "Scans/";
