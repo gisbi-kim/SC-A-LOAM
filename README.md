@@ -71,6 +71,13 @@
 - example result: 
     <p align="center"><img src="picture/scfastlio.png" width=600></p>
 
+### For Navtech Radar 
+- Scan Context also works for Navtech Radar data!
+- For the details, please see 
+    - https://github.com/gisbi-kim/navtech-radar-slam
+        - used the pose-graph optimization node of this repository (SC-A-LOAM)
+    - [example video](https://www.youtube.com/watch?v=avtIQ8fesgU&t=128s)
+
 ## Utilities
 
 ### Data saver and Map construction 
