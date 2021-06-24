@@ -81,7 +81,7 @@
 ## Utilities
 
 ### Data saver and Map construction 
-- Similar to the [SC-LIO-SAM's saver utility](https://github.com/gisbi-kim/SC-LIO-SAM#applications), we support pose and scan saver per keyframes. Using these saved data, the map (within ROI) can be constructed offline. See the `utils/makeMergedMap.py` and [this tutorial](https://www.youtube.com/watch?v=n9JxdfiTy3w). 
+- Similar to the [SC-LIO-SAM's saver utility](https://github.com/gisbi-kim/SC-LIO-SAM#applications), we support pose and scan saver per keyframes. Using these saved data, the map (within ROI) can be constructed offline. See the `utils/python/makeMergedMap.py` and [this tutorial](https://youtu.be/jmR3DH_A4Co). 
 - Below is the example results of MulRan dataset KAIST 03's merged map, visualized using CloudCompare ([download the map data here](https://www.dropbox.com/sh/96jrpx3x6hh316j/AACb07kGbocnQWMIpksmU6MQa?dl=0)).  
 
     <p align="center"><img src="picture/kaist-03-merged.png" width=800></p>
