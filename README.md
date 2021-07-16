@@ -1,5 +1,8 @@
 # SC-A-LOAM
 
+## News
+- ``2021-07-16``: This repository's easy-to-use plug-and-play loop detection and pose graph optimization module (named [SC-PGO](https://github.com/gisbi-kim/SC-A-LOAM/blob/main/src/laserPosegraphOptimization.cpp)) is also integrated with FAST-LIO2! see [FAST_LIO_SLAM](https://github.com/gisbi-kim/FAST_LIO_SLAM).
+
 ## What is SC-A-LOAM? 
 - A real-time LiDAR SLAM package that integrates A-LOAM and ScanContext. 
     - **A-LOAM** for odometry (i.e., consecutive motion estimation)
