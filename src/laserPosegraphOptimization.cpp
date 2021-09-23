@@ -404,12 +404,12 @@ void loopFindNearKeyframesCloud( pcl::PointCloud<PointType>::Ptr& nearKeyframes,
     // extract and stacking near keyframes (in global coord)
     nearKeyframes->clear();
     for (int i = -submap_size; i <= submap_size; ++i) {
-        int keyNear = root_idx + i;
+        int keyNear = key + i; // see https://github.com/gisbi-kim/SC-A-LOAM/issues/7 ack. @QiMingZhenFan found the error and modified as below. 
         if (keyNear < 0 || keyNear >= int(keyframeLaserClouds.size()) )
             continue;
 
         mKF.lock(); 
-        *nearKeyframes += * local2global(keyframeLaserClouds[keyNear], keyframePosesUpdated[keyNear]);
+        *nearKeyframes += * local2global(keyframeLaserClouds[keyNear], keyframePosesUpdated[root_idx]);
         mKF.unlock(); 
     }
 
