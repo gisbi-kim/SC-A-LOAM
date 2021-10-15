@@ -130,7 +130,7 @@ ros::Publisher pubLoopScanLocal, pubLoopSubmapLocal;
 ros::Publisher pubOdomRepubVerifier;
 
 std::string save_directory;
-std::string pgKITTIformat, pgScansDirectory;
+std::string pgKITTIformat, pgScansDirectory, pgSCDsDirectory;
 std::string odomKITTIformat;
 std::fstream pgTimeSaveStream;
 
@@ -138,6 +138,21 @@ std::string padZeros(int val, int num_digits = 6) {
   std::ostringstream out;
   out << std::internal << std::setfill('0') << std::setw(num_digits) << val;
   return out.str();
+}
+
+void saveSCD(std::string fileName, Eigen::MatrixXd matrix, std::string delimiter = " ")
+{
+    // delimiter: ", " or " " etc.
+
+    int precision = 3; // or Eigen::FullPrecision, but SCD does not require such accruate precisions so 3 is enough.
+    const static Eigen::IOFormat the_format(precision, Eigen::DontAlignCols, delimiter, "\n");
+ 
+    std::ofstream file(fileName);
+    if (file.is_open())
+    {
+        file << matrix.format(the_format);
+        file.close();
+    }
 }
 
 gtsam::Pose3 Pose6DtoGTSAMPose3(const Pose6D& p)
@@ -621,6 +636,10 @@ void process_pg()
             // save utility 
             std::string curr_node_idx_str = padZeros(curr_node_idx);
             pcl::io::savePCDFileBinary(pgScansDirectory + curr_node_idx_str + ".pcd", *thisKeyFrame); // scan 
+
+            const auto& curr_scd = scManager.getConstRefRecentSCD();
+            saveSCD(pgSCDsDirectory + curr_node_idx_str + ".scd", curr_scd);
+
             pgTimeSaveStream << timeLaser << std::endl; // path 
         }
 
@@ -772,15 +791,24 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "laserPGO");
 	ros::NodeHandle nh;
 
+    // save directories 
 	nh.param<std::string>("save_directory", save_directory, "/"); // pose assignment every k m move 
+
     pgKITTIformat = save_directory + "optimized_poses.txt";
     odomKITTIformat = save_directory + "odom_poses.txt";
+
     pgTimeSaveStream = std::fstream(save_directory + "times.txt", std::fstream::out); 
     pgTimeSaveStream.precision(std::numeric_limits<double>::max_digits10);
+
     pgScansDirectory = save_directory + "Scans/";
     auto unused = system((std::string("exec rm -r ") + pgScansDirectory).c_str());
     unused = system((std::string("mkdir -p ") + pgScansDirectory).c_str());
 
+    pgSCDsDirectory = save_directory + "SCDs/"; // SCD: scan context descriptor 
+    unused = system((std::string("exec rm -r ") + pgSCDsDirectory).c_str());
+    unused = system((std::string("mkdir -p ") + pgSCDsDirectory).c_str());
+
+    // system params 
 	nh.param<double>("keyframe_meter_gap", keyframeMeterGap, 2.0); // pose assignment every k m move 
 	nh.param<double>("keyframe_deg_gap", keyframeDegGap, 10.0); // pose assignment every k deg rot 
     keyframeRadGap = deg2rad(keyframeDegGap);
