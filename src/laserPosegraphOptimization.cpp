@@ -132,12 +132,46 @@ ros::Publisher pubOdomRepubVerifier;
 std::string save_directory;
 std::string pgKITTIformat, pgScansDirectory, pgSCDsDirectory;
 std::string odomKITTIformat;
-std::fstream pgTimeSaveStream;
+std::fstream pgG2oSaveStream, pgTimeSaveStream;
 
-std::string padZeros(int val, int num_digits = 6) {
+std::vector<std::string> edges_str; // used in writeEdge
+
+std::string padZeros(int val, int num_digits = 6) 
+{
   std::ostringstream out;
   out << std::internal << std::setfill('0') << std::setw(num_digits) << val;
   return out.str();
+}
+
+std::string getVertexStr(const int _node_idx, const gtsam::Pose3& _Pose)
+{
+    gtsam::Point3 t = _Pose.translation();
+    gtsam::Rot3 R = _Pose.rotation();
+
+    std::string curVertexInfo {
+        "VERTEX_SE3:QUAT " + std::to_string(_node_idx) + " "
+        + std::to_string(t.x()) + " " + std::to_string(t.y()) + " " + std::to_string(t.z())  + " " 
+        + std::to_string(R.toQuaternion().x()) + " " + std::to_string(R.toQuaternion().y()) + " " 
+        + std::to_string(R.toQuaternion().z()) + " " + std::to_string(R.toQuaternion().w()) };
+
+    // pgVertexSaveStream << curVertexInfo << std::endl;
+    // vertices_str.emplace_back(curVertexInfo);
+    return curVertexInfo;
+}
+
+void writeEdge(const std::pair<int, int> _node_idx_pair, const gtsam::Pose3& _relPose, std::vector<std::string>& edges_str)
+{
+    gtsam::Point3 t = _relPose.translation();
+    gtsam::Rot3 R = _relPose.rotation();
+
+    std::string curEdgeInfo {
+        "EDGE_SE3:QUAT " + std::to_string(_node_idx_pair.first) + " " + std::to_string(_node_idx_pair.second) + " "
+        + std::to_string(t.x()) + " " + std::to_string(t.y()) + " " + std::to_string(t.z())  + " " 
+        + std::to_string(R.toQuaternion().x()) + " " + std::to_string(R.toQuaternion().y()) + " " 
+        + std::to_string(R.toQuaternion().z()) + " " + std::to_string(R.toQuaternion().w()) };
+
+    // pgEdgeSaveStream << curEdgeInfo << std::endl;
+    edges_str.emplace_back(curEdgeInfo);
 }
 
 void saveSCD(std::string fileName, Eigen::MatrixXd matrix, std::string delimiter = " ")
@@ -159,6 +193,26 @@ gtsam::Pose3 Pose6DtoGTSAMPose3(const Pose6D& p)
 {
     return gtsam::Pose3( gtsam::Rot3::RzRyRx(p.roll, p.pitch, p.yaw), gtsam::Point3(p.x, p.y, p.z) );
 } // Pose6DtoGTSAMPose3
+
+void saveGTSAMgraphG2oFormat(const gtsam::Values& _estimates)
+{
+    // save pose graph (runs when programe is closing)
+    // cout << "****************************************************" << endl; 
+    cout << "Saving the posegraph ..." << endl; // giseop
+
+    pgG2oSaveStream = std::fstream(save_directory + "singlesession_posegraph.g2o", std::fstream::out);
+
+    int pose_idx = 0;
+    for(const auto& _pose6d: keyframePoses) {
+        gtsam::Pose3 pose = Pose6DtoGTSAMPose3(_pose6d);    
+        pgG2oSaveStream << getVertexStr(pose_idx, pose) << endl;
+        pose_idx++;
+    }
+    for(auto& _line: edges_str)
+        pgG2oSaveStream << _line << std::endl;
+
+    pgG2oSaveStream.close();
+}
 
 void saveOdometryVerticesKITTIformat(std::string _filename)
 {
@@ -612,7 +666,8 @@ void process_pg()
                 mtxPosegraph.lock();
                 {
                     // odom factor
-                    gtSAMgraph.add(gtsam::BetweenFactor<gtsam::Pose3>(prev_node_idx, curr_node_idx, poseFrom.between(poseTo), odomNoise));
+                    gtsam::Pose3 relPose = poseFrom.between(poseTo);
+                    gtSAMgraph.add(gtsam::BetweenFactor<gtsam::Pose3>(prev_node_idx, curr_node_idx, relPose, odomNoise));
 
                     // gps factor 
                     if(hasGPSforThisKF) {
@@ -624,6 +679,7 @@ void process_pg()
                         cout << "GPS factor added at node " << curr_node_idx << endl;
                     }
                     initialEstimate.insert(curr_node_idx, poseTo);                
+                    writeEdge({prev_node_idx, curr_node_idx}, relPose, edges_str); // giseop
                     // runISAM2opt();
                 }
                 mtxPosegraph.unlock();
@@ -706,6 +762,7 @@ void process_icp(void)
                 gtsam::Pose3 relative_pose = relative_pose_optional.value();
                 mtxPosegraph.lock();
                 gtSAMgraph.add(gtsam::BetweenFactor<gtsam::Pose3>(prev_node_idx, curr_node_idx, relative_pose, robustLoopNoise));
+                writeEdge({prev_node_idx, curr_node_idx}, relative_pose, edges_str); // giseop
                 // runISAM2opt();
                 mtxPosegraph.unlock();
             } 
@@ -743,6 +800,7 @@ void process_isam(void)
 
             saveOptimizedVerticesKITTIformat(isamCurrentEstimate, pgKITTIformat); // pose
             saveOdometryVerticesKITTIformat(odomKITTIformat); // pose
+            saveGTSAMgraphG2oFormat(isamCurrentEstimate);
         }
     }
 }
@@ -796,6 +854,8 @@ int main(int argc, char **argv)
 
     pgKITTIformat = save_directory + "optimized_poses.txt";
     odomKITTIformat = save_directory + "odom_poses.txt";
+
+    // pgG2oSaveStream = std::fstream(save_directory + "singlesession_posegraph.g2o", std::fstream::out);
 
     pgTimeSaveStream = std::fstream(save_directory + "times.txt", std::fstream::out); 
     pgTimeSaveStream.precision(std::numeric_limits<double>::max_digits10);
